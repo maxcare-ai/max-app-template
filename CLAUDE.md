@@ -19,6 +19,17 @@ The app communicates with the MaxCare dashboard parent window via postMessage pr
 3. The admin layout wraps pages in `AppBridgeProvider` from `@max-ai/app-bridge`
 4. Use `useAdminBridge()` from `src/lib/bridge.ts` to access org/facility context and auth headers
 
+## Navigation
+
+- Never build a tab row, sidebar or header nav inside the app. Sections are declared with
+  `<maxcare-app-nav>` in `src/app/admin/layout.tsx` (`AppNav`) and the dashboard renders them.
+- Section `href`s are app paths relative to `/admin` (the registered App URL ends in `/admin`):
+  `/` → `src/app/admin/page.tsx`, `/reports` → `src/app/admin/reports/page.tsx`.
+- `AppNav` must keep `maxcare.navigation.subscribe(path => router.replace(...))` — dashboard
+  clicks arrive only through it — and keeps reporting route changes with
+  `navigate(path, { target: "app" })`. Do not call `navigate` from the subscribe callback.
+- Max 8 sections, labels ≤ 32 characters, no PHI in labels. Filters (facility picker) stay in the page.
+
 ## Key Patterns
 
 - **Auth middleware**: API routes use `requireAuth(request)` from `src/lib/auth.ts` which validates `x-organization-id` and `x-facility-id` headers
@@ -68,7 +79,7 @@ Required scopes are automatically granted when a clinic installs the app. Option
 
 ## File Structure
 
-- `src/app/admin/` — Main app pages (embedded in MaxCare dashboard)
+- `src/app/admin/` — Main app pages (embedded in MaxCare dashboard; the App URL points here)
 - `src/app/admin/test/` — Dev-only test page for App Bridge and component verification
 - `src/app/api/` — Backend API routes
 - `src/lib/bridge.ts` — App Bridge React context and hooks

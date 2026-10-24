@@ -10,8 +10,7 @@ import {
   useVisibleViewport,
   ViewportProvider,
 } from "@/lib/hooks/use-visible-viewport";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   AdminBridgeContext,
   useAdminBridge,
@@ -78,57 +77,53 @@ function FacilitySelect({ facilities, value, onChange }: {
   );
 }
 
-function AdminNav() {
-  const { facilities, selectedFacilityId, setSelectedFacilityId } = useAdminBridge();
+// The App URL registered in the Developer Console points at this route, so the
+// dashboard's app paths ("/", "/test") are relative to it.
+const APP_BASE = "/admin";
+
+function toAppPath(pathname: string): string {
+  return pathname.slice(APP_BASE.length) || "/";
+}
+
+function toRouterPath(appPath: string): string {
+  // "/" and "/?q" map onto the base itself, not "/admin/" with a trailing slash.
+  const atBase = appPath === "/" || /^\/[?#]/.test(appPath);
+  return `${APP_BASE}${atBase ? appPath.slice(1) : appPath}`;
+}
+
+/**
+ * Declares this app's sections to the MaxCare dashboard, which draws them in its own
+ * sidebar and header. Renders nothing. Clicks arrive through `navigation.subscribe`.
+ */
+function AppNav() {
+  const { maxcare, config } = useAdminBridge();
+  const router = useRouter();
   const pathname = usePathname();
 
-  const navItems = [
-    { href: "/admin", label: "Dashboard" },
-    // Add your nav items here
-    ...(process.env.NODE_ENV === "development"
-      ? [{ href: "/admin/test", label: "Test" }]
-      : []),
-  ];
+  useEffect(() => {
+    if (!maxcare) return;
+    // The dashboard already moved its address bar; only follow it, never report back.
+    return maxcare.navigation.subscribe((path) => router.replace(toRouterPath(path)));
+  }, [maxcare, router]);
+
+  useEffect(() => {
+    // `config` arrives with the dashboard's init; a report sent before it is dropped.
+    if (!maxcare || !config) return;
+    // Keeps the dashboard URL (and its highlighted section) in step with in-app moves.
+    maxcare.navigation.navigate(toAppPath(pathname), { target: "app" });
+  }, [maxcare, config, pathname]);
 
   return (
-    <div className="border-b bg-card">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-14">
-          <nav className="flex gap-1">
-            {navItems.map((item) => {
-              const isActive =
-                item.href === "/admin"
-                  ? pathname === "/admin"
-                  : pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    isActive
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:text-accent-foreground hover:bg-accent/50"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <FacilitySelect
-            facilities={facilities}
-            value={selectedFacilityId}
-            onChange={setSelectedFacilityId}
-          />
-        </div>
-      </div>
-    </div>
+    <maxcare-app-nav>
+      <a href="/">Dashboard</a>
+      {/* Add your sections here: href is the path relative to /admin */}
+      {process.env.NODE_ENV === "development" && <a href="/test">Test</a>}
+    </maxcare-app-nav>
   );
 }
 
 function AdminShell({ children }: { children: React.ReactNode }) {
-  const { ready } = useAdminBridge();
+  const { ready, facilities, selectedFacilityId, setSelectedFacilityId } = useAdminBridge();
   const [timedOut, setTimedOut] = useState(false);
   const viewport = useVisibleViewport();
 
@@ -145,8 +140,15 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <ViewportProvider value={viewport}>
       <div className="bg-background">
-        <AdminNav />
+        <AppNav />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          <div className="flex justify-end mb-6">
+            <FacilitySelect
+              facilities={facilities}
+              value={selectedFacilityId}
+              onChange={setSelectedFacilityId}
+            />
+          </div>
           {!ready && (
             <div className="mb-4 px-4 py-3 rounded-lg bg-muted text-sm">
               {timedOut ? (

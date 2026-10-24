@@ -30,7 +30,7 @@ Before writing any code, register your application in the MaxCare developer port
 2. Click **Create Application**
 3. Fill in the required fields:
    - **App name** — Display name shown in the marketplace
-   - **App URL** — The URL where your app is hosted (e.g. `https://my-app.fly.dev`). This is the URL MaxCare will load inside an iframe. For local development, use `http://localhost:3000`
+   - **App URL** — The URL where your app is hosted including the `/admin` route (e.g. `https://my-app.fly.dev/admin`). This is the URL MaxCare will load inside an iframe. For local development, use `http://localhost:3000/admin` (`max-ai app dev` registers its tunnel URL with `/admin` for you)
    - **Description** — What your app does
    - **Scopes** — The permissions your app needs (e.g. `read:appointments`, `read:patients`)
 4. Save your app — you'll receive an **App ID** and credentials
@@ -104,7 +104,7 @@ src/
 │   ├── globals.css             # Tailwind + CSS variables (MaxCare theme)
 │   ├── page.tsx                # Landing page (redirect or dev links)
 │   ├── admin/
-│   │   ├── layout.tsx          # Admin layout — AppBridgeProvider, nav, auth shell
+│   │   ├── layout.tsx          # Admin layout — AppBridgeProvider, <maxcare-app-nav>, auth shell
 │   │   ├── page.tsx            # Your main app page
 │   │   └── test/page.tsx       # Dev-only test page (bridge + components)
 │   └── api/
@@ -157,6 +157,37 @@ function MyComponent() {
   // headers contains x-organization-id and x-facility-id for API calls
 }
 ```
+
+---
+
+## Navigation
+
+Don't draw a tab row or sidebar inside your app — the MaxCare dashboard draws your
+sections in its own sidebar and header. `src/app/admin/layout.tsx` declares them with
+the `<maxcare-app-nav>` element (requires `@max-ai/app-bridge` 0.6.0 or later):
+
+```tsx
+<maxcare-app-nav>
+  <a href="/">Dashboard</a>
+  <a href="/reports">Reports</a>
+</maxcare-app-nav>
+```
+
+- Each `href` is a path **relative to `/admin`**, the route your App URL points at:
+  `/` is `src/app/admin/page.tsx`, `/reports` is `src/app/admin/reports/page.tsx`.
+- Clicking a section in the dashboard does not click anything in your app. The
+  dashboard sends the path through `maxcare.navigation.subscribe`, and the layout's
+  `AppNav` routes there with `router.replace`. Keep that subscription.
+- `AppNav` also reports every in-app route change with
+  `maxcare.navigation.navigate(path, { target: "app" })`, so the dashboard URL stays
+  linkable and the right section stays highlighted.
+- Add `collapsed="sidebar-flyout"` or `collapsed="hidden"` to change where sections
+  go while the dashboard sidebar is collapsed (default: tabs in the dashboard header).
+- At most 8 sections, labels up to 32 characters. Labels show in dashboard chrome:
+  never put patient data in them.
+- Filters such as the facility picker stay in your page, not in the menu.
+
+See the [App Development guide](https://docs.maxcare.ai/guides/app-development#navigation-menu) for the full rules.
 
 ---
 
@@ -283,7 +314,7 @@ After cloning, you'll want to:
 
 1. Update `package.json` — change `name`, `description`
 2. Update `src/app/layout.tsx` — change the page title and metadata
-3. Update `src/app/admin/layout.tsx` — customize nav items for your app's pages
+3. Update `src/app/admin/layout.tsx` — list your app's pages as `<a>` children of `<maxcare-app-nav>` (see [Navigation](#navigation))
 4. Add your entities in `src/lib/db/entities/`
 5. Build your pages in `src/app/admin/`
 6. Add API routes in `src/app/api/`
