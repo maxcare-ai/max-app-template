@@ -19,7 +19,7 @@
     "postinstall": "cp node_modules/@max-ai/app-bridge/dist/app-bridge.iife.js public/app-bridge.iife.js 2>/dev/null || true"
   },
   "dependencies": {
-    "@max-ai/app-bridge": "^0.0.4",
+    "@max-ai/app-bridge": "^0.6.0",
     "@max-ai/components": "^0.0.2",
     "dotenv": "^17.3.1",
     "next": "16.1.6",
